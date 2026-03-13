@@ -1,17 +1,15 @@
 using System.Net.Sockets;
 using System.Text;
 using Modbus.NET.Core.Exceptions;
+using Modbus.NET.Core.Interfaces;
 using Modbus.NET.Core.Utils;
 
 namespace Modbus.NET.Core.ModbusTcp;
 
 /// <summary>
 /// Modbus TCP 客户端实现，用于与 Modbus TCP 设备（如 PLC）通信。
-/// 此类旨在演示底层协议交互。
-/// 注意：地址参数 (如 coilAddress, registerAddress) 均为 0-based。
-/// 例如，读取第一个保持寄存器 (通常称为 40001)，地址应传入 0。
 /// </summary>
-public class ModbusTcpClient : IDisposable
+public class ModbusTcpClient : IProtocolClient
 {
     private TcpClient _tcpClient;
     private NetworkStream _networkStream;
@@ -36,6 +34,8 @@ public class ModbusTcpClient : IDisposable
         public const byte WriteMultipleCoils = 0x0F;
         public const byte WriteMultipleRegisters = 0x10;
     }
+
+    public bool IsConnected => _tcpClient?.Connected == true;
 
     /// <summary>
     /// 初始化 ModbusTcpClient。
@@ -613,8 +613,76 @@ public class ModbusTcpClient : IDisposable
 
     #endregion
 
+    public async Task<T> ReadAsync<T>(string address)
+    {
+        // 简单地址解析，例如 "Coil:1", "HoldingRegister:100"
+        var parts = address.Split(':');
+        if (parts.Length != 2 || !ushort.TryParse(parts[1], out ushort addr))
+        {
+            throw new ArgumentException("Invalid Modbus address format. Use 'Coil:<address>' or 'HoldingRegister:<address>'.", nameof(address));
+        }
+
+        string type = parts[0];
+
+        if (typeof(T) == typeof(bool))
+        {
+            if (type.Equals("Coil", StringComparison.OrdinalIgnoreCase))
+            {
+                var result = await ReadSingleCoilAsync(addr);
+                return (T)(object)result;
+            }
+        }
+        else if (typeof(T) == typeof(short))
+        {
+            if (type.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
+            {
+                var result = await ReadShortAsync(addr);
+                return (T)(object)result;
+            }
+        }
+        else if (typeof(T) == typeof(ushort))
+        {
+            if (type.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
+            {
+                var result = await ReadUShortAsync(addr);
+                return (T)(object)result;
+            }
+        }
+
+        throw new NotSupportedException($"Reading type {typeof(T).Name} from {type} is not supported or not implemented.");
+    }
+
+    public async Task WriteAsync<T>(string address, T value)
+    {
+        var parts = address.Split(':');
+        if (parts.Length != 2 || !ushort.TryParse(parts[1], out ushort addr))
+        {
+            throw new ArgumentException("Invalid Modbus address format. Use 'Coil:<address>' or 'HoldingRegister:<address>'.", nameof(address));
+        }
+
+        string type = parts[0];
+
+        if (value is bool boolValue && type.Equals("Coil", StringComparison.OrdinalIgnoreCase))
+        {
+            await WriteSingleCoilAsync(addr, boolValue);
+            return;
+        }
+        else if (value is short shortValue && type.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
+        {
+            await WriteShortAsync(addr, shortValue);
+            return;
+        }
+        else if (value is ushort ushortValue && type.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
+        {
+            await WriteUShortAsync(addr, ushortValue);
+            return;
+        }
+
+        throw new NotSupportedException($"Writing type {typeof(T).Name} to {type} is not supported or not implemented.");
+    }
+
     public void Dispose()
     {
-        // TODO 在此释放托管资源
+        Disconnect();
     }
 }

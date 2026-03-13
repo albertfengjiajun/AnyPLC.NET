@@ -8,4 +8,8 @@
         <RootNamespace>Modbus.NET.Core</RootNamespace>
     </PropertyGroup>
 
+    <ItemGroup>
+      <PackageReference Include="Opc.UaFx.Client" Version="2.51.2" />
+    </ItemGroup>
+
 </Project>
