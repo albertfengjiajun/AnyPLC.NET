@@ -4,7 +4,9 @@ using Modbus.NET.Core;
 using Modbus.NET.Core.Exceptions;
 using Modbus.NET.Core.ModbusTcp;
 using Modbus.NET.Core.OpcUa;
+using Modbus.NET.Core.S7;
 using Modbus.NET.Core.Utils;
+using S7.Net;
 
 namespace Modbus.NET.ConsoleApp;
 
@@ -13,7 +15,7 @@ public class Program
     public static async Task Main(string[] args)
     {
         Console.Title = "Modbus.NET & OPC UA Industrial Gateway Demo";
-        Console.WriteLine("工业协议网关测试应用程序 - .NET 9 版本");
+        Console.WriteLine("工业协议网关测试应用程序 - .NET 10 版本");
         Console.WriteLine("======================================");
 
         // 初始化统一网关
@@ -36,6 +38,17 @@ public class Program
         var opcuaClient = new OpcUaClient(opcuaUrl);
         gateway.RegisterClient(opcuaDeviceId, opcuaClient);
         Console.WriteLine($"[网关] 已注册 OPC UA 设备: {opcuaDeviceId} ({opcuaUrl})");
+
+        // 3. 注册 Siemens S7 设备
+        string s7DeviceId = "PLC_S7_1";
+        string s7IpAddress = "127.0.0.1"; // 请替换为实际 S7 PLC IP 地址
+        CpuType cpuType = CpuType.S71200; // 根据实际 PLC 类型调整
+        short rack = 0;
+        short slot = 1;
+
+        var s7Client = new S7Client(cpuType, s7IpAddress, rack, slot);
+        gateway.RegisterClient(s7DeviceId, s7Client);
+        Console.WriteLine($"[网关] 已注册 Siemens S7 设备: {s7DeviceId} ({s7IpAddress}, CPU: {cpuType})");
 
         Console.WriteLine("\n尝试连接所有设备...");
 
@@ -116,6 +129,36 @@ public class Program
             else
             {
                 Console.WriteLine($"[OPC UA] 设备 {opcuaDeviceId} 未连接，跳过读写测试。");
+            }
+            Console.WriteLine("------------------------------------");
+
+            // --- 示例：使用统一网关接口操作 Siemens S7 ---
+            if (gateway.GetClient(s7DeviceId).IsConnected)
+            {
+                Console.WriteLine($"[Siemens S7] 正在通过网关操作设备: {s7DeviceId}");
+                // DB块地址，根据实际 PLC DB 配置进行修改 (例如读取 DB1 的第 0 个偏移的双字)
+                string s7Address = "DB1.DBD0";
+
+                try
+                {
+                    int s7Value = await gateway.ReadAsync<int>(s7DeviceId, s7Address);
+                    Console.WriteLine($"-> 读取地址 {s7Address} 的值: {s7Value}");
+
+                    int s7NewValue = s7Value + 10;
+                    Console.WriteLine($"-> 尝试将地址 {s7Address} 写入为 {s7NewValue}...");
+                    await gateway.WriteAsync(s7DeviceId, s7Address, s7NewValue);
+
+                    int s7FinalValue = await gateway.ReadAsync<int>(s7DeviceId, s7Address);
+                    Console.WriteLine($"-> 再次读取地址 {s7Address} 的值: {s7FinalValue}");
+                }
+                catch (Exception s7Ex)
+                {
+                    Console.WriteLine($"-> Siemens S7 操作异常: {s7Ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"[Siemens S7] 设备 {s7DeviceId} 未连接，跳过读写测试。");
             }
 
         }
