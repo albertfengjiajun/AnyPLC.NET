@@ -3,6 +3,7 @@ using System.Text;
 using Modbus.NET.Core;
 using Modbus.NET.Core.Exceptions;
 using Modbus.NET.Core.ModbusTcp;
+using Modbus.NET.Core.Omron;
 using Modbus.NET.Core.OpcUa;
 using Modbus.NET.Core.S7;
 using Modbus.NET.Core.Utils;
@@ -49,6 +50,15 @@ public class Program
         var s7Client = new S7Client(cpuType, s7IpAddress, rack, slot);
         gateway.RegisterClient(s7DeviceId, s7Client);
         Console.WriteLine($"[网关] 已注册 Siemens S7 设备: {s7DeviceId} ({s7IpAddress}, CPU: {cpuType})");
+
+        // 4. 注册 Omron (欧姆龙) FINS 设备
+        string omronDeviceId = "PLC_Omron_1";
+        string omronIpAddress = "127.0.0.1"; // 请替换为实际 Omron PLC IP 地址
+        int omronPort = 9600; // FINS 默认端口
+
+        var omronClient = new OmronFinsClient(omronIpAddress, omronPort);
+        gateway.RegisterClient(omronDeviceId, omronClient);
+        Console.WriteLine($"[网关] 已注册 Omron 设备: {omronDeviceId} ({omronIpAddress}:{omronPort})");
 
         Console.WriteLine("\n尝试连接所有设备...");
 
@@ -108,7 +118,7 @@ public class Program
                 Console.WriteLine($"[OPC UA] 正在通过网关操作设备: {opcuaDeviceId}");
                 // 常见的仿真节点，请根据你的 OPC UA 服务器实际节点替换
                 string opcuaNodeId = "ns=2;s=Demo.Static.Scalar.Int32";
-                
+
                 try
                 {
                     int nodeValue = await gateway.ReadAsync<int>(opcuaDeviceId, opcuaNodeId);
@@ -159,6 +169,36 @@ public class Program
             else
             {
                 Console.WriteLine($"[Siemens S7] 设备 {s7DeviceId} 未连接，跳过读写测试。");
+            }
+            Console.WriteLine("------------------------------------");
+
+            // --- 示例：使用统一网关接口操作 Omron ---
+            if (gateway.GetClient(omronDeviceId).IsConnected)
+            {
+                Console.WriteLine($"[Omron] 正在通过网关操作设备: {omronDeviceId}");
+                // 欧姆龙地址，例如 D 区数据寄存器
+                string omronAddress = "D100";
+
+                try
+                {
+                    short omronValue = await gateway.ReadAsync<short>(omronDeviceId, omronAddress);
+                    Console.WriteLine($"-> 读取地址 {omronAddress} 的值: {omronValue}");
+
+                    short omronNewValue = (short)(omronValue + 5);
+                    Console.WriteLine($"-> 尝试将地址 {omronAddress} 写入为 {omronNewValue}...");
+                    await gateway.WriteAsync(omronDeviceId, omronAddress, omronNewValue);
+
+                    short omronFinalValue = await gateway.ReadAsync<short>(omronDeviceId, omronAddress);
+                    Console.WriteLine($"-> 再次读取地址 {omronAddress} 的值: {omronFinalValue}");
+                }
+                catch (Exception omronEx)
+                {
+                    Console.WriteLine($"-> Omron 操作异常: {omronEx.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"[Omron] 设备 {omronDeviceId} 未连接，跳过读写测试。");
             }
 
         }
