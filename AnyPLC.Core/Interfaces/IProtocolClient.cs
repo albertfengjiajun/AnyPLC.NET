@@ -1,4 +1,4 @@
-namespace Modbus.NET.Core.Interfaces;
+namespace AnyPLC.Core.Interfaces;
 
 /// <summary>
 /// 工业协议客户端的统一接口，提供网关层面对不同协议设备的统一抽象。

@@ -1,10 +1,10 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modbus.NET.Core", "Modbus.NET.Core\Modbus.NET.Core.csproj", "{83BE8F08-D224-4D4F-B6CC-2423192C44B0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnyPLC.Core", "AnyPLC.Core\AnyPLC.Core.csproj", "{83BE8F08-D224-4D4F-B6CC-2423192C44B0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modbus.NET.ConsoleApp", "Modbus.NET.ConsoleApp\Modbus.NET.ConsoleApp.csproj", "{9730AD49-0DFA-4A50-8C53-DECCBC1571E7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnyPLC.ConsoleApp", "AnyPLC.ConsoleApp\AnyPLC.ConsoleApp.csproj", "{9730AD49-0DFA-4A50-8C53-DECCBC1571E7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modbus.NET.Tests", "Modbus.NET.Tests\Modbus.NET.Tests.csproj", "{9283C0CB-6C59-483B-8536-D8EBF88D78CA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnyPLC.Tests", "AnyPLC.Tests\AnyPLC.Tests.csproj", "{9283C0CB-6C59-483B-8536-D8EBF88D78CA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

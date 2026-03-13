@@ -1,7 +1,7 @@
-using Modbus.NET.Core.Interfaces;
+using AnyPLC.Core.Interfaces;
 using S7.Net;
 
-namespace Modbus.NET.Core.S7;
+namespace AnyPLC.Core.S7;
 
 /// <summary>
 /// 西门子 S7 客户端实现，支持通过 S7netplus 与西门子 PLC (如 S7-1200, S7-1500, S7-300 等) 通信。

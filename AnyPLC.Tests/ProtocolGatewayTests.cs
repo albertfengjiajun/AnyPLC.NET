@@ -1,9 +1,9 @@
 using Moq;
 using Xunit;
-using Modbus.NET.Core;
-using Modbus.NET.Core.Interfaces;
+using AnyPLC.Core;
+using AnyPLC.Core.Interfaces;
 
-namespace Modbus.NET.Tests;
+namespace AnyPLC.Tests;
 
 public class ProtocolGatewayTests
 {

@@ -1,7 +1,7 @@
-using Modbus.NET.Core.Interfaces;
+using AnyPLC.Core.Interfaces;
 using Opc.UaFx.Client;
 
-namespace Modbus.NET.Core.OpcUa;
+namespace AnyPLC.Core.OpcUa;
 
 /// <summary>
 /// OPC UA 客户端实现，用于与 OPC UA 服务器通信。

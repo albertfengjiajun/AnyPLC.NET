@@ -1,7 +1,7 @@
 using Xunit;
-using Modbus.NET.Core.Utils;
+using AnyPLC.Core.Utils;
 
-namespace Modbus.NET.Tests;
+namespace AnyPLC.Tests;
 
 public class ModbusUtilityTests
 {

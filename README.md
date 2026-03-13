@@ -1,22 +1,22 @@
-# Modbus.NET
+# AnyPLC
 
-![LICENSE](https://img.shields.io/github/license/albertfengjiajun/Modbus.NET)
-![.NET](https://img.shields.io/badge/.NET-9.0-blue)
-![Version](https://img.shields.io/badge/version-0.1.0-brightgreen)
+![LICENSE](https://img.shields.io/github/license/albertfengjiajun/AnyPLC)
+![.NET](https://img.shields.io/badge/.NET-10.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.0-brightgreen)
 
-Modbus.NET 是一个轻量级的 .NET Modbus 通信库，专为与支持 Modbus TCP 协议的设备（如 PLC）进行通信设计。
+AnyPLC 是一个轻量级且强大的 .NET 多工业协议网关通信库，专为与各种主流工业设备（如 PLC）进行通信而设计。
 
 ## 特性
 
-- 纯 C# 实现，支持 .NET 9.0
-- 支持 Modbus TCP 协议
-- 完整支持线圈（Coils）操作：读取、写入单个线圈，批量读写多个线圈
-- 完整支持保持寄存器（Holding Registers）操作：读取、写入单个寄存器，批量读写多个寄存器
-- 支持对寄存器中特定位的读写操作
-- 内置类型转换：短整型（short/ushort）和字符串与寄存器的转换
-- 友好的异常处理
-- 简洁直观的 API 设计
-- 详细的代码注释和示例
+- 支持最新的 .NET 10.0
+- **多协议支持**：
+  - Modbus TCP 协议
+  - OPC UA (基于 `Opc.UaFx.Client`)
+  - Siemens S7 (基于 `S7netplus`)
+  - Omron (基于 `libplctag`)
+- **统一的网关架构 (`ProtocolGateway`)**：允许使用一致的 API 注册、连接和操作不同协议的设备。
+- 友好的异常处理与异步编程模型
+- 简洁直观的 API 设计，详尽的中文注释
 
 ## 开始使用
 
@@ -25,98 +25,66 @@ Modbus.NET 是一个轻量级的 .NET Modbus 通信库，专为与支持 Modbus 
 #### 1. 从源码构建
 
 ```bash
-git clone https://github.com/albertfengjiajun/Modbus.NET.git
-cd Modbus.NET
+git clone https://github.com/albertfengjiajun/AnyPLC.git
+cd AnyPLC
 dotnet build
 ```
 
 #### 2. 在你的项目中引用
 
-在项目中添加对 Modbus.NET.Core 的引用：
+在项目中添加对 AnyPLC.Core 的引用：
 
 ```bash
-dotnet add reference path/to/Modbus.NET.Core/Modbus.NET.Core.csproj
+dotnet add reference path/to/AnyPLC.Core/AnyPLC.Core.csproj
 ```
 
 或将编译后的 DLL 添加为引用。
 
 ### 使用示例
 
-#### 基本连接与操作
+#### 统一网关操作
+
+AnyPLC 的核心是 `ProtocolGateway`，你可以通过它注册不同协议的设备并统一调用。
 
 ```csharp
-using Modbus.NET.Core.ModbusTcp;
+using AnyPLC.Core;
+using AnyPLC.Core.ModbusTcp;
+using AnyPLC.Core.OpcUa;
+using AnyPLC.Core.S7;
+using S7.Net;
 
-// 创建 Modbus TCP 客户端
-using var client = new ModbusTcpClient("192.168.1.10", 502, 1);
+// 1. 初始化统一网关
+using var gateway = new ProtocolGateway();
 
-// 连接到设备
-await client.ConnectAsync();
+// 2. 注册不同协议的设备
+gateway.RegisterClient("MyModbusDevice", new ModbusTcpClient("192.168.1.10", 502, 1));
+gateway.RegisterClient("MyOpcUaServer", new OpcUaClient("opc.tcp://localhost:4840"));
+gateway.RegisterClient("MyS7PLC", new S7Client(CpuType.S71200, "192.168.1.20", 0, 1));
 
-// 读取线圈
-bool coilState = await client.ReadSingleCoilAsync(0); // 读取地址为0的线圈 (00001)
-Console.WriteLine($"线圈状态: {coilState}");
+// 3. 统一连接
+await gateway.ConnectAllAsync();
 
-// 写入线圈
-await client.WriteSingleCoilAsync(0, true); // 将地址为0的线圈设置为ON
+// 4. 读取/写入 Modbus 数据
+bool coilState = await gateway.ReadAsync<bool>("MyModbusDevice", "Coil:0");
+await gateway.WriteAsync("MyModbusDevice", "HoldingRegister:100", (short)12345);
 
-// 读取保持寄存器
-short value = await client.ReadShortAsync(100); // 读取地址为100的寄存器 (40101)
-Console.WriteLine($"寄存器值: {value}");
+// 5. 读取/写入 OPC UA 节点
+int opcuaValue = await gateway.ReadAsync<int>("MyOpcUaServer", "ns=2;s=Demo.Static.Scalar.Int32");
 
-// 写入保持寄存器
-await client.WriteShortAsync(100, 12345); // 写入短整型值
+// 6. 读取/写入 Siemens S7 DB块
+int s7Value = await gateway.ReadAsync<int>("MyS7PLC", "DB1.DBD0");
 
-// 读取字符串
-string text = await client.ReadStringAsync(200, 10); // 从地址200开始读取10个寄存器的字符串
-Console.WriteLine($"字符串: {text}");
-
-// 断开连接
-client.Disconnect();
-```
-
-#### 批量操作
-
-```csharp
-// 读取多个线圈
-bool[] coils = await client.ReadMultipleCoilsAsync(10, 5); // 从地址10开始读取5个线圈
-
-// 写入多个线圈
-await client.WriteMultipleCoilsAsync(10, new bool[] { true, false, true, false, true });
-
-// 写入多个寄存器
-await client.WriteMultipleRegistersAsync(100, new ushort[] { 1, 2, 3, 4, 5 });
-```
-
-#### 寄存器位操作
-
-```csharp
-// 读取寄存器中的特定位
-bool bitValue = await client.ReadBoolFromRegisterBitAsync(300, 5); // 读取地址300的寄存器的第5位
-
-// 写入寄存器中的特定位
-await client.WriteBoolToRegisterBitAsync(300, 5, true); // 将地址300的寄存器的第5位设置为true
-```
-
-#### 字符串操作
-
-```csharp
-// 写入字符串
-await client.WriteStringAsync(200, "Hello Modbus", 10);
-
-// 读取字符串（支持字节对顺序颠倒）
-string text = await client.ReadStringAsync(200, 10, true); // 第三个参数为true表示颠倒字节对顺序
+// 断开所有连接自动由 Gateway 的 Dispose 负责
 ```
 
 ## 注意事项
 
-- 所有地址均为 0-based。例如，标准 Modbus 中的线圈 1 对应地址 0，保持寄存器 40001 对应地址 0。
-- 默认连接超时为 5 秒。
-- 异常处理请参考示例代码中的 try-catch 块。
+- Modbus 地址均为 0-based，并且遵循 `Type:Address` 格式（如 `Coil:0`, `HoldingRegister:100`）。
+- 各个协议底层实现可能抛出其专属异常，建议在使用 `ProtocolGateway` 时配合良好的 Try-Catch 处理。
 
-## 高级用法
+## 高级用法与测试
 
-完整的高级用法示例请参考 `Modbus.NET.ConsoleApp` 项目中的示例代码。
+完整的高级用法示例请参考 `AnyPLC.ConsoleApp` 项目中的示例代码。项目同时提供了基于 xUnit 的测试套件 `AnyPLC.Tests` 以供参考。
 
 ## 贡献
 

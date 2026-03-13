@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using Modbus.NET.Core.Interfaces;
+using AnyPLC.Core.Interfaces;
 
-namespace Modbus.NET.Core;
+namespace AnyPLC.Core;
 
 /// <summary>
 /// 工业协议网关管理器，统一管理各种协议(Modbus, OPC UA等)的客户端。

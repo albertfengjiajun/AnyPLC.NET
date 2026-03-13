@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using libplctag;
 using libplctag.DataTypes;
-using Modbus.NET.Core.Interfaces;
+using AnyPLC.Core.Interfaces;
 
-namespace Modbus.NET.Core.Omron;
+namespace AnyPLC.Core.Omron;
 
 /// <summary>
 /// 欧姆龙 PLC 客户端实现，使用开源免费的 libplctag 库。

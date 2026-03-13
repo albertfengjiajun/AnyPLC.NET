@@ -1,10 +1,10 @@
 using System.Net.Sockets;
 using System.Text;
-using Modbus.NET.Core.Exceptions;
-using Modbus.NET.Core.Interfaces;
-using Modbus.NET.Core.Utils;
+using AnyPLC.Core.Exceptions;
+using AnyPLC.Core.Interfaces;
+using AnyPLC.Core.Utils;
 
-namespace Modbus.NET.Core.ModbusTcp;
+namespace AnyPLC.Core.ModbusTcp;
 
 /// <summary>
 /// Modbus TCP 客户端实现，用于与 Modbus TCP 设备（如 PLC）通信。

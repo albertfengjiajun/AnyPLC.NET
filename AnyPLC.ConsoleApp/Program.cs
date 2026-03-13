@@ -1,21 +1,21 @@
 using System.Net.Sockets;
 using System.Text;
-using Modbus.NET.Core;
-using Modbus.NET.Core.Exceptions;
-using Modbus.NET.Core.ModbusTcp;
-using Modbus.NET.Core.Omron;
-using Modbus.NET.Core.OpcUa;
-using Modbus.NET.Core.S7;
-using Modbus.NET.Core.Utils;
+using AnyPLC.Core;
+using AnyPLC.Core.Exceptions;
+using AnyPLC.Core.ModbusTcp;
+using AnyPLC.Core.Omron;
+using AnyPLC.Core.OpcUa;
+using AnyPLC.Core.S7;
+using AnyPLC.Core.Utils;
 using S7.Net;
 
-namespace Modbus.NET.ConsoleApp;
+namespace AnyPLC.ConsoleApp;
 
 public class Program
 {
     public static async Task Main(string[] args)
     {
-        Console.Title = "Modbus.NET & OPC UA Industrial Gateway Demo";
+        Console.Title = "AnyPLC & OPC UA Industrial Gateway Demo";
         Console.WriteLine("工业协议网关测试应用程序 - .NET 10 版本");
         Console.WriteLine("======================================");
 

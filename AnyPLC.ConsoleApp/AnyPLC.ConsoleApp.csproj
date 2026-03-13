@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Modbus.NET.Core\Modbus.NET.Core.csproj" />
+      <ProjectReference Include="..\AnyPLC.Core\AnyPLC.Core.csproj" />
     </ItemGroup>
 
 </Project>

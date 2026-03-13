@@ -1,4 +1,4 @@
-namespace Modbus.NET.Core.Exceptions;
+namespace AnyPLC.Core.Exceptions;
 
 /// <summary>
 /// 自定义 Modbus 异常类。
