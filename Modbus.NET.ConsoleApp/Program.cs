@@ -51,14 +51,13 @@ public class Program
         gateway.RegisterClient(s7DeviceId, s7Client);
         Console.WriteLine($"[网关] 已注册 Siemens S7 设备: {s7DeviceId} ({s7IpAddress}, CPU: {cpuType})");
 
-        // 4. 注册 Omron (欧姆龙) FINS 设备
+        // 4. 注册 Omron (欧姆龙) CIP 设备
         string omronDeviceId = "PLC_Omron_1";
         string omronIpAddress = "127.0.0.1"; // 请替换为实际 Omron PLC IP 地址
-        int omronPort = 9600; // FINS 默认端口
 
-        var omronClient = new OmronFinsClient(omronIpAddress, omronPort);
+        var omronClient = new OmronClient(omronIpAddress);
         gateway.RegisterClient(omronDeviceId, omronClient);
-        Console.WriteLine($"[网关] 已注册 Omron 设备: {omronDeviceId} ({omronIpAddress}:{omronPort})");
+        Console.WriteLine($"[网关] 已注册 Omron 设备: {omronDeviceId} ({omronIpAddress})");
 
         Console.WriteLine("\n尝试连接所有设备...");
 
@@ -176,24 +175,24 @@ public class Program
             if (gateway.GetClient(omronDeviceId).IsConnected)
             {
                 Console.WriteLine($"[Omron] 正在通过网关操作设备: {omronDeviceId}");
-                // 欧姆龙地址，例如 D 区数据寄存器
-                string omronAddress = "D100";
+                // 欧姆龙地址，在使用 libplctag 时通常是 CIP 变量名或数组
+                string omronAddress = "myIntVariable";
 
                 try
                 {
                     short omronValue = await gateway.ReadAsync<short>(omronDeviceId, omronAddress);
-                    Console.WriteLine($"-> 读取地址 {omronAddress} 的值: {omronValue}");
+                    Console.WriteLine($"-> 读取标签 {omronAddress} 的值: {omronValue}");
 
                     short omronNewValue = (short)(omronValue + 5);
-                    Console.WriteLine($"-> 尝试将地址 {omronAddress} 写入为 {omronNewValue}...");
+                    Console.WriteLine($"-> 尝试将标签 {omronAddress} 写入为 {omronNewValue}...");
                     await gateway.WriteAsync(omronDeviceId, omronAddress, omronNewValue);
 
                     short omronFinalValue = await gateway.ReadAsync<short>(omronDeviceId, omronAddress);
-                    Console.WriteLine($"-> 再次读取地址 {omronAddress} 的值: {omronFinalValue}");
+                    Console.WriteLine($"-> 再次读取标签 {omronAddress} 的值: {omronFinalValue}");
                 }
                 catch (Exception omronEx)
                 {
-                    Console.WriteLine($"-> Omron 操作异常: {omronEx.Message}");
+                    Console.WriteLine($"-> Omron 操作异常 (需真实PLC或仿真器支持): {omronEx.Message}");
                 }
             }
             else
