@@ -1,4 +1,4 @@
-namespace Modbus.NET.Core.Utils;
+namespace AnyPLC.Core.Utils;
 
 /// <summary>
 /// 辅助类，用于 Modbus 协议相关的数据转换，特别是处理大端字节序。
