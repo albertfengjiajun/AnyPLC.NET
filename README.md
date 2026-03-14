@@ -1,131 +1,154 @@
-# Modbus.NET
+# AnyPLC.NET
 
-![LICENSE](https://img.shields.io/github/license/albertfengjiajun/Modbus.NET)
-![.NET](https://img.shields.io/badge/.NET-9.0-blue)
-![Version](https://img.shields.io/badge/version-0.1.0-brightgreen)
+![LICENSE](https://img.shields.io/github/license/albertfengjiajun/AnyPLC)
+![.NET](https://img.shields.io/badge/.NET-10.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.0-brightgreen)
 
-Modbus.NET 是一个轻量级的 .NET Modbus 通信库，专为与支持 Modbus TCP 协议的设备（如 PLC）进行通信设计。
+**AnyPLC.NET** (原 Modbus.NET) 是一个轻量级、跨平台且极其强大的 **.NET 多工业协议网关框架**。它旨在为开发者提供一个统一、简洁的 API，以消除不同工业设备（如 PLC、传感器、服务器）底层通信协议的差异。
 
-## 特性
+通过 AnyPLC.NET，你可以轻松地在一个应用程序中同时管理和连接西门子、欧姆龙、Modbus 设备以及 OPC UA 服务器。
 
-- 纯 C# 实现，支持 .NET 9.0
-- 支持 Modbus TCP 协议
-- 完整支持线圈（Coils）操作：读取、写入单个线圈，批量读写多个线圈
-- 完整支持保持寄存器（Holding Registers）操作：读取、写入单个寄存器，批量读写多个寄存器
-- 支持对寄存器中特定位的读写操作
-- 内置类型转换：短整型（short/ushort）和字符串与寄存器的转换
-- 友好的异常处理
-- 简洁直观的 API 设计
-- 详细的代码注释和示例
+## ✨ 核心特性
 
-## 开始使用
+- **🚀 最新框架**：完全基于现代的 .NET 10.0 构建，支持跨平台 (Windows, Linux, macOS)。
+- **🌐 统一的网关架构**：通过核心类 `ProtocolGateway`，以唯一的设备 ID (`DeviceId`) 注册、连接和管理所有异构设备。
+- **🔌 多协议支持 (全部基于纯开源免费组件)**：
+  - **Modbus TCP**: 内部原生纯 C# 高性能实现。
+  - **OPC UA**: 基于官方 `OPCFoundation.NetStandard.Opc.Ua`。
+  - **Siemens S7**: 基于广受好评的 `S7netplus`，支持 S7-1200/1500/300/400 等。
+  - **Omron**: 基于 `libplctag` (FINS/CIP)，支持 NJ/NX 等标签读写。
+- **⚡ 异步优先**：全面采用 `async/await` 异步编程模型，不会阻塞主线程，适用于高并发网关场景。
+- **🧩 极易扩展**：只需实现 `IProtocolClient` 接口，即可轻松接入你自己的私有协议或物联网 (IoT) 协议。
 
-### 安装
+---
 
-#### 1. 从源码构建
+## 📦 开始使用
 
-```bash
-git clone https://github.com/albertfengjiajun/Modbus.NET.git
-cd Modbus.NET
-dotnet build
-```
-
-#### 2. 在你的项目中引用
-
-在项目中添加对 Modbus.NET.Core 的引用：
+### 1. 从源码构建
 
 ```bash
-dotnet add reference path/to/Modbus.NET.Core/Modbus.NET.Core.csproj
+git clone https://github.com/albertfengjiajun/AnyPLC.git
+cd AnyPLC
+dotnet build AnyPLC.NET.sln
 ```
 
-或将编译后的 DLL 添加为引用。
+### 2. 在你的项目中引用
 
-### 使用示例
+在你的项目根目录下，添加对核心项目的引用（请将 `<AnyPLC源码目录>` 替换为你实际克隆该仓库的本地路径）：
 
-#### 基本连接与操作
+```bash
+dotnet add reference <AnyPLC源码目录>/AnyPLC.Core/AnyPLC.Core.csproj
+```
+
+或者构建整个解决方案后，将生成的 `AnyPLC.Core.dll` 文件添加为程序集引用。
+
+---
+
+## 🛠️ 快速入门：构建你的第一个工业网关
+
+AnyPLC 的核心理念是**注册 -> 连接 -> 统一读写**。以下是一个典型的使用场景：
 
 ```csharp
-using Modbus.NET.Core.ModbusTcp;
+using AnyPLC.Core;
+using AnyPLC.Core.ModbusTcp;
+using AnyPLC.Core.OpcUa;
+using AnyPLC.Core.S7;
+using AnyPLC.Core.Omron;
+using S7.Net;
 
-// 创建 Modbus TCP 客户端
-using var client = new ModbusTcpClient("192.168.1.10", 502, 1);
+// 1. 初始化统一网关 (支持 IDisposable)
+using var gateway = new ProtocolGateway();
 
-// 连接到设备
-await client.ConnectAsync();
+// 2. 注册不同协议的设备并赋予全局唯一的 DeviceID
+gateway.RegisterClient("Line1_Modbus", new ModbusTcpClient("192.168.1.10", 502, 1));
+gateway.RegisterClient("Line2_S7", new S7Client(CpuType.S71200, "192.168.1.20", 0, 1));
+gateway.RegisterClient("Plant_OPCUA", new OpcUaClient("opc.tcp://192.168.1.30:4840"));
+gateway.RegisterClient("Line3_Omron", new OmronClient("192.168.1.40"));
 
-// 读取线圈
-bool coilState = await client.ReadSingleCoilAsync(0); // 读取地址为0的线圈 (00001)
-Console.WriteLine($"线圈状态: {coilState}");
+// 3. 统一发起异步连接
+// 网关将并行连接所有已注册的客户端
+await gateway.ConnectAllAsync();
 
-// 写入线圈
-await client.WriteSingleCoilAsync(0, true); // 将地址为0的线圈设置为ON
+// 4. 使用统一的泛型 API 读取数据
+try
+{
+    // 读取 Modbus 线圈
+    bool isRunning = await gateway.ReadAsync<bool>("Line1_Modbus", "Coil:0");
 
-// 读取保持寄存器
-short value = await client.ReadShortAsync(100); // 读取地址为100的寄存器 (40101)
-Console.WriteLine($"寄存器值: {value}");
+    // 读取 S7 数据块
+    int speed = await gateway.ReadAsync<int>("Line2_S7", "DB1.DBD0");
 
-// 写入保持寄存器
-await client.WriteShortAsync(100, 12345); // 写入短整型值
+    // 读取 OPC UA 节点
+    int temperature = await gateway.ReadAsync<int>("Plant_OPCUA", "ns=2;s=Demo.Static.Scalar.Int32");
 
-// 读取字符串
-string text = await client.ReadStringAsync(200, 10); // 从地址200开始读取10个寄存器的字符串
-Console.WriteLine($"字符串: {text}");
+    // 读取 Omron 标签
+    short pressure = await gateway.ReadAsync<short>("Line3_Omron", "myPressureTag");
 
-// 断开连接
-client.Disconnect();
+    Console.WriteLine($"状态: {isRunning}, 速度: {speed}, 温度: {temperature}, 压力: {pressure}");
+
+    // 5. 写入数据
+    await gateway.WriteAsync("Line1_Modbus", "HoldingRegister:100", (short)12345);
+    await gateway.WriteAsync("Line2_S7", "DB1.DBD4", (int)8888);
+}
+catch(Exception ex)
+{
+    Console.WriteLine($"通信异常: {ex.Message}");
+}
+// 离开 using 作用域时，网关会自动断开所有连接并释放资源
 ```
 
-#### 批量操作
+---
+
+## 📋 协议与地址映射指南
+
+在使用 `gateway.ReadAsync<T>(deviceId, address)` 时，不同的底层客户端要求不同的 `address` 字符串格式：
+
+| 协议名称 | 底层实现库 | 地址字符串 (`address`) 格式要求 | 示例 |
+| :--- | :--- | :--- | :--- |
+| **Modbus TCP** | *(内置)* | `<类型>:<0基地址>`。支持的类型：`Coil`, `HoldingRegister` | `Coil:0`<br>`HoldingRegister:100` |
+| **Siemens S7** | `S7netplus` | 标准西门子绝对地址格式 | `DB1.DBD0` (读取双字)<br>`M10.0` (读取位) |
+| **OPC UA** | `OPCFoundation` | 标准的 OPC UA 节点 ID (NodeId) 字符串 | `ns=2;s=MyVariable`<br>`i=2258` |
+| **Omron (CIP)** | `libplctag` | 欧姆龙 PLC 中定义的标签变量名 | `MyIntVariable`<br>`D100` (取决于配置) |
+
+---
+
+## 🧱 高级：如何扩展自定义协议？
+
+AnyPLC.NET 设计得非常灵活。如果你需要接入一个特殊的串口设备或 REST API，只需要创建一个类实现 `IProtocolClient` 即可：
 
 ```csharp
-// 读取多个线圈
-bool[] coils = await client.ReadMultipleCoilsAsync(10, 5); // 从地址10开始读取5个线圈
+using AnyPLC.Core.Interfaces;
 
-// 写入多个线圈
-await client.WriteMultipleCoilsAsync(10, new bool[] { true, false, true, false, true });
+public class MyCustomClient : IProtocolClient
+{
+    public bool IsConnected { get; private set; }
 
-// 写入多个寄存器
-await client.WriteMultipleRegistersAsync(100, new ushort[] { 1, 2, 3, 4, 5 });
+    public Task ConnectAsync(CancellationToken cancellationToken = default) { /* 连接逻辑 */ }
+    public void Disconnect() { /* 断开逻辑 */ }
+
+    public Task<T> ReadAsync<T>(string address) { /* 读取逻辑 */ }
+    public Task WriteAsync<T>(string address, T value) { /* 写入逻辑 */ }
+
+    public void Dispose() => Disconnect();
+}
+
+// 然后在你的应用中直接注册给网关：
+gateway.RegisterClient("MyCustomDevice", new MyCustomClient());
 ```
 
-#### 寄存器位操作
+---
 
-```csharp
-// 读取寄存器中的特定位
-bool bitValue = await client.ReadBoolFromRegisterBitAsync(300, 5); // 读取地址300的寄存器的第5位
+## 🧪 测试与演示应用
 
-// 写入寄存器中的特定位
-await client.WriteBoolToRegisterBitAsync(300, 5, true); // 将地址300的寄存器的第5位设置为true
-```
+本项目包含完整的自动化测试以及一个详尽的演示控制台程序：
 
-#### 字符串操作
+- **自动化测试**: 运行 `dotnet test AnyPLC.NET.sln` 即可执行 `AnyPLC.Tests` 中的 xUnit 测试用例。
+- **演示应用**: 导航到 `AnyPLC.ConsoleApp` 目录并运行 `dotnet run`，它将演示如何并行连接 Modbus, OPC UA, S7 和 Omron 客户端。**(提示：请在运行前修改 `Program.cs` 中的 IP 地址为你网络中的真实设备或模拟器地址)**。
 
-```csharp
-// 写入字符串
-await client.WriteStringAsync(200, "Hello Modbus", 10);
+## 🤝 贡献
 
-// 读取字符串（支持字节对顺序颠倒）
-string text = await client.ReadStringAsync(200, 10, true); // 第三个参数为true表示颠倒字节对顺序
-```
+如果你希望增加对新协议（如 MQTT, EtherNet/IP, BACnet）的支持，或者发现了 Bug，我们非常欢迎你提交 Issue 和 Pull Request！
 
-## 注意事项
-
-- 所有地址均为 0-based。例如，标准 Modbus 中的线圈 1 对应地址 0，保持寄存器 40001 对应地址 0。
-- 默认连接超时为 5 秒。
-- 异常处理请参考示例代码中的 try-catch 块。
-
-## 高级用法
-
-完整的高级用法示例请参考 `Modbus.NET.ConsoleApp` 项目中的示例代码。
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 许可证
+## 📄 许可证
 
 本项目采用 MIT 许可证 - 详情请查看 [LICENSE](LICENSE) 文件。
-
-## 致谢
-
-感谢所有对此项目做出贡献的开发者！
