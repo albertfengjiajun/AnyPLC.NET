@@ -1,6 +1,8 @@
 using AnyPLC.Core.Interfaces;
 using S7.Net;
+using System.Runtime.CompilerServices;
 
+[assembly: InternalsVisibleTo("AnyPLC.Tests")]
 namespace AnyPLC.Core.S7;
 
 /// <summary>
@@ -8,9 +10,9 @@ namespace AnyPLC.Core.S7;
 /// </summary>
 public class S7Client : IProtocolClient
 {
-    private readonly Plc _plc;
+    private readonly IS7Plc _plc;
 
-    public bool IsConnected => _plc?.IsConnected == true;
+    public bool IsConnected => _plc != null && _plc.IsConnected;
 
     /// <summary>
     /// 初始化 S7Client。
@@ -21,14 +23,23 @@ public class S7Client : IProtocolClient
     /// <param name="slot">槽号 (Slot)，S7-1200/1500 通常为 1 或 0，S7-300 通常为 2</param>
     public S7Client(CpuType cpu, string ip, short rack, short slot)
     {
-        _plc = new Plc(cpu, ip, rack, slot);
+        _plc = new S7PlcWrapper(cpu, ip, rack, slot);
+    }
+
+    /// <summary>
+    /// 内部构造函数，用于依赖注入（便于单元测试）。
+    /// </summary>
+    /// <param name="plc">实现了 IS7Plc 接口的对象</param>
+    internal S7Client(IS7Plc plc)
+    {
+        _plc = plc ?? throw new ArgumentNullException(nameof(plc));
     }
 
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (IsConnected) return;
 
-        await _plc.OpenAsync();
+        await _plc.OpenAsync(cancellationToken);
         if (!IsConnected)
         {
             throw new Exception($"Failed to connect to S7 PLC at {_plc.IP}");
@@ -88,5 +99,6 @@ public class S7Client : IProtocolClient
     public void Dispose()
     {
         Disconnect();
+        _plc?.Dispose();
     }
 }
