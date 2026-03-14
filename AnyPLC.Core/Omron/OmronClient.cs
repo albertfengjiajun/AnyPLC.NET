@@ -59,7 +59,7 @@ public class OmronClient : IProtocolClient
     private Tag<TPlcMapper, TNetType> GetOrCreateTag<TPlcMapper, TNetType>(string address)
         where TPlcMapper : IPlcMapper<TNetType>, new()
     {
-        if (!_tags.TryGetValue(address, out var tag))
+        var tag = _tags.GetOrAdd(address, key =>
         {
             var newTag = new Tag<TPlcMapper, TNetType>()
             {
@@ -67,15 +67,14 @@ public class OmronClient : IProtocolClient
                 Path = "1,0",         // Default routing
                 PlcType = PlcType.Omron, // libplctag enum for Omron
                 Protocol = Protocol.ab_eip, // Omron NJ/NX often use EtherNet/IP (CIP)
-                Name = address,
+                Name = key,
                 Timeout = TimeSpan.FromSeconds(5)
             };
 
             // 初始化，建立与 PLC 的实际关联
             newTag.Initialize();
-            _tags[address] = newTag;
             return newTag;
-        }
+        });
 
         return (Tag<TPlcMapper, TNetType>)tag;
     }

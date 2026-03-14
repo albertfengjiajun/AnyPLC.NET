@@ -10,7 +10,7 @@
 
     <ItemGroup>
       <PackageReference Include="libplctag" Version="1.5.2" />
-      <PackageReference Include="Opc.UaFx.Client" Version="2.51.2" />
+      <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua" Version="1.5.378.106" />
       <PackageReference Include="S7netplus" Version="0.20.0" />
     </ItemGroup>
 

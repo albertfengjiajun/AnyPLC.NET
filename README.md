@@ -32,13 +32,13 @@ dotnet build
 
 #### 2. 在你的项目中引用
 
-在项目中添加对 AnyPLC.Core 的引用：
+在你的项目根目录下，添加对 AnyPLC.Core 项目的引用（请将 `<AnyPLC源码目录>` 替换为你实际克隆该仓库的本地路径）：
 
 ```bash
-dotnet add reference path/to/AnyPLC.Core/AnyPLC.Core.csproj
+dotnet add reference <AnyPLC源码目录>/AnyPLC.Core/AnyPLC.Core.csproj
 ```
 
-或将编译后的 DLL 添加为引用。
+或将编译后的 `AnyPLC.Core.dll` 文件添加为程序集引用。
 
 ### 使用示例
 
