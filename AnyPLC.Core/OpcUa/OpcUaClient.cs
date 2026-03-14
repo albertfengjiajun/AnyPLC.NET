@@ -66,11 +66,16 @@ public class OpcUaClient : IProtocolClient
 
     public void Disconnect()
     {
+        DisconnectAsync().GetAwaiter().GetResult();
+    }
+
+    public async Task DisconnectAsync()
+    {
         if (_session != null)
         {
             if (_session.Connected)
             {
-                _session.CloseAsync().Wait();
+                await _session.CloseAsync();
             }
             _session.Dispose();
             _session = null;

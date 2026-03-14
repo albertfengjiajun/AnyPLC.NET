@@ -55,6 +55,15 @@ public class ProtocolGateway : IDisposable
     /// <summary>
     /// 断开所有已注册设备的连接。
     /// </summary>
+    /// <summary>
+    /// 异步断开所有已注册设备的连接。
+    /// </summary>
+    public async Task DisconnectAllAsync()
+    {
+        var disconnectTasks = _clients.Values.Select(client => client.DisconnectAsync());
+        await Task.WhenAll(disconnectTasks);
+    }
+
     public void DisconnectAll()
     {
         foreach (var client in _clients.Values)

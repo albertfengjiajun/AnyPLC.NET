@@ -35,6 +35,12 @@ public class S7Client : IProtocolClient
         }
     }
 
+    public Task DisconnectAsync()
+    {
+        Disconnect();
+        return Task.CompletedTask;
+    }
+
     public void Disconnect()
     {
         if (_plc != null && _plc.IsConnected)
