@@ -4,7 +4,8 @@
 
 ## 核心约束：语言 (Core Constraint: Language)
 - **始终保持中文对话**。无论是回复用户的提问、提供计划、编写代码注释还是提交 PR 描述，都必须使用流利且专业的简体中文。
-- (Always keep the conversation language in Chinese. Replies, plans, code comments, and PR descriptions must be in fluent, professional Simplified Chinese.)
+- **Git 提交信息必须为中文**。在使用 `submit` 工具进行提交时，`commit_message`（包括标题和正文）、`title` 和 `description` 都必须使用中文编写，严禁使用英文作为主标题。
+- (Always keep the conversation language in Chinese. Replies, plans, code comments, PR descriptions, and git commit messages must be in fluent, professional Simplified Chinese.)
 
 ## 项目概述
 AnyPLC.NET 是一个基于 **.NET 10.0** 构建的多工业协议网关。它通过统一的接口和管理器，抽象出底层协议细节，使得在一个应用中能够同时和多种异构工业设备（如 PLC、传感器）通信。
@@ -30,7 +31,6 @@ AnyPLC.NET 是一个基于 **.NET 10.0** 构建的多工业协议网关。它通
 ## 其他开发惯例
 - 遇到任何编译、依赖或测试失败的情况，请优先仔细阅读错误日志，诊断根本原因，而不是盲目安装或卸载包。
 - 在修改代码后，必须自行进行编译构建测试 (`dotnet build AnyPLC.NET.sln`)，确保没有引入新的警告或错误。
-- 提交信息的 `description` 和 `title` 需要简明扼要，且必须为中文。
 
 ---
 *此文件将帮助你更好地理解项目的上下文并避免走弯路。祝编码愉快！*
