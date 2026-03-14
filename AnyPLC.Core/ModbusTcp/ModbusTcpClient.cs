@@ -616,17 +616,17 @@ public class ModbusTcpClient : IProtocolClient
     public async Task<T> ReadAsync<T>(string address)
     {
         // 简单地址解析，例如 "Coil:1", "HoldingRegister:100"
-        var parts = address.Split(':');
-        if (parts.Length != 2 || !ushort.TryParse(parts[1], out ushort addr))
+        int colonIndex = address.IndexOf(':');
+        if (colonIndex == -1 || !ushort.TryParse(address.AsSpan(colonIndex + 1), out ushort addr))
         {
             throw new ArgumentException("Invalid Modbus address format. Use 'Coil:<address>' or 'HoldingRegister:<address>'.", nameof(address));
         }
 
-        string type = parts[0];
+        ReadOnlySpan<char> typeSpan = address.AsSpan(0, colonIndex);
 
         if (typeof(T) == typeof(bool))
         {
-            if (type.Equals("Coil", StringComparison.OrdinalIgnoreCase))
+            if (typeSpan.Equals("Coil", StringComparison.OrdinalIgnoreCase))
             {
                 var result = await ReadSingleCoilAsync(addr);
                 return (T)(object)result;
@@ -634,7 +634,7 @@ public class ModbusTcpClient : IProtocolClient
         }
         else if (typeof(T) == typeof(short))
         {
-            if (type.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
+            if (typeSpan.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
             {
                 var result = await ReadShortAsync(addr);
                 return (T)(object)result;
@@ -642,43 +642,43 @@ public class ModbusTcpClient : IProtocolClient
         }
         else if (typeof(T) == typeof(ushort))
         {
-            if (type.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
+            if (typeSpan.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
             {
                 var result = await ReadUShortAsync(addr);
                 return (T)(object)result;
             }
         }
 
-        throw new NotSupportedException($"Reading type {typeof(T).Name} from {type} is not supported or not implemented.");
+        throw new NotSupportedException($"Reading type {typeof(T).Name} from {typeSpan.ToString()} is not supported or not implemented.");
     }
 
     public async Task WriteAsync<T>(string address, T value)
     {
-        var parts = address.Split(':');
-        if (parts.Length != 2 || !ushort.TryParse(parts[1], out ushort addr))
+        int colonIndex = address.IndexOf(':');
+        if (colonIndex == -1 || !ushort.TryParse(address.AsSpan(colonIndex + 1), out ushort addr))
         {
             throw new ArgumentException("Invalid Modbus address format. Use 'Coil:<address>' or 'HoldingRegister:<address>'.", nameof(address));
         }
 
-        string type = parts[0];
+        ReadOnlySpan<char> typeSpan = address.AsSpan(0, colonIndex);
 
-        if (value is bool boolValue && type.Equals("Coil", StringComparison.OrdinalIgnoreCase))
+        if (value is bool boolValue && typeSpan.Equals("Coil", StringComparison.OrdinalIgnoreCase))
         {
             await WriteSingleCoilAsync(addr, boolValue);
             return;
         }
-        else if (value is short shortValue && type.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
+        else if (value is short shortValue && typeSpan.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
         {
             await WriteShortAsync(addr, shortValue);
             return;
         }
-        else if (value is ushort ushortValue && type.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
+        else if (value is ushort ushortValue && typeSpan.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
         {
             await WriteUShortAsync(addr, ushortValue);
             return;
         }
 
-        throw new NotSupportedException($"Writing type {typeof(T).Name} to {type} is not supported or not implemented.");
+        throw new NotSupportedException($"Writing type {typeof(T).Name} to {typeSpan.ToString()} is not supported or not implemented.");
     }
 
     public void Dispose()
