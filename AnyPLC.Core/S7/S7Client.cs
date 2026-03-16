@@ -15,6 +15,15 @@ public class S7Client : IProtocolClient
     public bool IsConnected => _plc != null && _plc.IsConnected;
 
     /// <summary>
+    /// 初始化 S7Client (用于依赖注入/单元测试)。
+    /// </summary>
+    /// <param name="plcWrapper">PLC 的接口封装实例</param>
+    public S7Client(IS7PlcWrapper plcWrapper)
+    {
+        _plc = plcWrapper ?? throw new ArgumentNullException(nameof(plcWrapper));
+    }
+
+    /// <summary>
     /// 初始化 S7Client。
     /// </summary>
     /// <param name="cpu">CPU 类型 (如 CpuType.S71200)</param>
