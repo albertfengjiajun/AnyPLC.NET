@@ -426,7 +426,10 @@ public class ModbusTcpClient : IProtocolClient
 
         for (int i = 0; i < numberOfRegisters; i++)
         {
-            Buffer.BlockCopy(ModbusUtility.GetBytesBigEndian(values[i]), 0, pduData, 5 + (i * 2), 2);
+            ushort val = values[i];
+            int offset = 5 + (i * 2);
+            pduData[offset] = (byte)(val >> 8);
+            pduData[offset + 1] = (byte)val;
         }
 
         byte[] responseData = await ExecuteModbusRequestAsync(FunctionCodes.WriteMultipleRegisters, pduData);
