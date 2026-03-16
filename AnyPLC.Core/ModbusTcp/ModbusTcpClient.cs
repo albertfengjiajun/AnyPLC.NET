@@ -78,6 +78,12 @@ public class ModbusTcpClient : IProtocolClient
     /// <summary>
     /// 断开与服务器的连接。
     /// </summary>
+    public Task DisconnectAsync()
+    {
+        Disconnect();
+        return Task.CompletedTask;
+    }
+
     public void Disconnect()
     {
         _networkStream?.Close(); // Close会处理Dispose
@@ -113,56 +119,65 @@ public class ModbusTcpClient : IProtocolClient
         }
 
         ushort currentTransactionId;
-        byte[] requestMbap;
         byte[] fullRequest;
 
-        lock (_lock) // 确保TransactionId 和 Stream写入的原子性
+        lock (_lock)
         {
             currentTransactionId = GetNextTransactionId();
-
-            // 1. 构建 MBAP (Modbus Application Protocol) Header (7 bytes)
-            //    - Transaction Identifier (2 bytes): currentTransactionId
-            //    - Protocol Identifier (2 bytes): 0x0000 (for Modbus)
-            //    - Length (2 bytes): Number of following bytes (Unit ID + PDU)
-            //    - Unit Identifier (1 byte): _unitId
-            ushort pduLength = (ushort)(1 + pduData.Length); // UnitID (1) + FunctionCode (implicitly in pduData[0] or pduData itself if FC is separate)
-                                                             // Corrected: pduLength is actually just FC + FC_Data. MBAP Length field is UnitID + FC + FC_Data
-            ushort mbapLengthField = (ushort)(1 + 1 + pduData.Length); // UnitID + FunctionCode + PDU_Data
-
-            requestMbap = new byte[7];
-            Buffer.BlockCopy(ModbusUtility.GetBytesBigEndian(currentTransactionId), 0, requestMbap, 0, 2); // Transaction ID
-            requestMbap[2] = 0x00; // Protocol ID Hi
-            requestMbap[3] = 0x00; // Protocol ID Lo
-            Buffer.BlockCopy(ModbusUtility.GetBytesBigEndian(mbapLengthField), 0, requestMbap, 4, 2); // Length
-            requestMbap[6] = _unitId; // Unit ID
-
-            // 2. 构建完整的请求报文 (MBAP + Function Code + PDU Data)
-            fullRequest = new byte[7 + 1 + pduData.Length];
-            Buffer.BlockCopy(requestMbap, 0, fullRequest, 0, 7);
-            fullRequest[7] = functionCode; // Function Code
-            Buffer.BlockCopy(pduData, 0, fullRequest, 8, pduData.Length); // PDU Data
+            fullRequest = BuildModbusRequest(currentTransactionId, functionCode, pduData);
         }
 
-        // 3. 发送请求
+        await SendModbusRequestAsync(fullRequest).ConfigureAwait(false);
+
+        byte[] responseMbap = await ReceiveMbapHeaderAsync().ConfigureAwait(false);
+        ushort responseMbapLengthField = ValidateMbapHeader(responseMbap, currentTransactionId);
+
+        byte[] responsePdu = await ReceivePduAsync(responseMbapLengthField).ConfigureAwait(false);
+        return ValidatePduAndExtractData(responsePdu, functionCode);
+    }
+
+    private byte[] BuildModbusRequest(ushort transactionId, byte functionCode, byte[] pduData)
+    {
+        ushort mbapLengthField = (ushort)(1 + 1 + pduData.Length);
+        byte[] requestMbap = new byte[7];
+
+        Buffer.BlockCopy(ModbusUtility.GetBytesBigEndian(transactionId), 0, requestMbap, 0, 2);
+        requestMbap[2] = 0x00;
+        requestMbap[3] = 0x00;
+        Buffer.BlockCopy(ModbusUtility.GetBytesBigEndian(mbapLengthField), 0, requestMbap, 4, 2);
+        requestMbap[6] = _unitId;
+
+        byte[] fullRequest = new byte[7 + 1 + pduData.Length];
+        Buffer.BlockCopy(requestMbap, 0, fullRequest, 0, 7);
+        fullRequest[7] = functionCode;
+        Buffer.BlockCopy(pduData, 0, fullRequest, 8, pduData.Length);
+
+        return fullRequest;
+    }
+
+    private async Task SendModbusRequestAsync(byte[] fullRequest)
+    {
         await _networkStream.WriteAsync(fullRequest, 0, fullRequest.Length).ConfigureAwait(false);
         await _networkStream.FlushAsync().ConfigureAwait(false);
+    }
 
-
-        // 4. 接收响应 MBAP Header (前7字节)
+    private async Task<byte[]> ReceiveMbapHeaderAsync()
+    {
         byte[] responseMbap = new byte[7];
         int bytesRead = await _networkStream.ReadAsync(responseMbap, 0, 7).ConfigureAwait(false);
         if (bytesRead < 7)
         {
             throw new ModbusException("Incomplete MBAP header received.");
         }
+        return responseMbap;
+    }
 
-        // 5. 解析响应 MBAP Header
+    private ushort ValidateMbapHeader(byte[] responseMbap, ushort currentTransactionId)
+    {
         ushort responseTransactionId = ModbusUtility.ToUInt16BigEndian(responseMbap, 0);
         ushort responseProtocolId = ModbusUtility.ToUInt16BigEndian(responseMbap, 2);
         ushort responseMbapLengthField = ModbusUtility.ToUInt16BigEndian(responseMbap, 4);
-        byte responseUnitId = responseMbap[6];
 
-        // 校验响应 MBAP Header
         if (responseTransactionId != currentTransactionId)
         {
             throw new ModbusException($"Transaction ID mismatch. Expected: {currentTransactionId}, Got: {responseTransactionId}");
@@ -171,33 +186,33 @@ public class ModbusTcpClient : IProtocolClient
         {
             throw new ModbusException($"Protocol ID mismatch. Expected: 0x0000, Got: {responseProtocolId}");
         }
-        if (responseUnitId != _unitId && _unitId != 0 && _unitId != 255) // UnitID 0 for broadcast (no response), 255 for some gateways. Be flexible.
-        {
-            // Some PLCs might respond with their actual UnitID even if request was for 0 or 255, or if unit ID is misconfigured.
-            // For strict checking, this should be an exact match.
-            // Console.WriteLine($"Warning: Unit ID mismatch. Expected: {_unitId}, Got: {responseUnitId}");
-        }
 
-        // 6. 接收响应 PDU (Function Code + Data or Exception)
-        // responseMbapLengthField = UnitID (1 byte) + PDU (FC + Data). So PDU length is responseMbapLengthField - 1
+        return responseMbapLengthField;
+    }
+
+    private async Task<byte[]> ReceivePduAsync(ushort responseMbapLengthField)
+    {
         int pduResponseLength = responseMbapLengthField - 1;
         if (pduResponseLength <= 0) {
              throw new ModbusException("Invalid PDU length in response MBAP header.");
         }
+
         byte[] responsePdu = new byte[pduResponseLength];
-        bytesRead = await _networkStream.ReadAsync(responsePdu, 0, pduResponseLength).ConfigureAwait(false);
+        int bytesRead = await _networkStream.ReadAsync(responsePdu, 0, pduResponseLength).ConfigureAwait(false);
 
         if (bytesRead < pduResponseLength)
         {
             throw new ModbusException("Incomplete PDU received.");
         }
+        return responsePdu;
+    }
 
-        // 7. 检查 Modbus 异常
-        // 如果功能码的最高位为1 (即 > 0x80)，则表示服务器返回了异常
+    private byte[] ValidatePduAndExtractData(byte[] responsePdu, byte functionCode)
+    {
         byte responseFunctionCode = responsePdu[0];
         if (responseFunctionCode > 0x80 && responseFunctionCode == (functionCode | 0x80))
         {
-            byte exceptionCode = responsePdu[1]; // 异常码在PDU的第二个字节
+            byte exceptionCode = responsePdu[1];
             throw new ModbusException($"Modbus exception received. Function Code: {functionCode}, Exception Code: {exceptionCode}", exceptionCode);
         }
         if (responseFunctionCode != functionCode)
@@ -205,7 +220,6 @@ public class ModbusTcpClient : IProtocolClient
              throw new ModbusException($"Function code mismatch. Expected: {functionCode}, Got: {responseFunctionCode}");
         }
 
-        // 8. 返回 PDU 数据部分 (不含功能码)
         byte[] responseData = new byte[responsePdu.Length - 1];
         Buffer.BlockCopy(responsePdu, 1, responseData, 0, responseData.Length);
         return responseData;
@@ -412,7 +426,10 @@ public class ModbusTcpClient : IProtocolClient
 
         for (int i = 0; i < numberOfRegisters; i++)
         {
-            Buffer.BlockCopy(ModbusUtility.GetBytesBigEndian(values[i]), 0, pduData, 5 + (i * 2), 2);
+            ushort val = values[i];
+            int offset = 5 + (i * 2);
+            pduData[offset] = (byte)(val >> 8);
+            pduData[offset + 1] = (byte)val;
         }
 
         byte[] responseData = await ExecuteModbusRequestAsync(FunctionCodes.WriteMultipleRegisters, pduData);
@@ -616,17 +633,17 @@ public class ModbusTcpClient : IProtocolClient
     public async Task<T> ReadAsync<T>(string address)
     {
         // 简单地址解析，例如 "Coil:1", "HoldingRegister:100"
-        var parts = address.Split(':');
-        if (parts.Length != 2 || !ushort.TryParse(parts[1], out ushort addr))
+        int colonIndex = address.IndexOf(':');
+        if (colonIndex == -1 || !ushort.TryParse(address.AsSpan(colonIndex + 1), out ushort addr))
         {
             throw new ArgumentException("Invalid Modbus address format. Use 'Coil:<address>' or 'HoldingRegister:<address>'.", nameof(address));
         }
 
-        string type = parts[0];
+        ReadOnlySpan<char> typeSpan = address.AsSpan(0, colonIndex);
 
         if (typeof(T) == typeof(bool))
         {
-            if (type.Equals("Coil", StringComparison.OrdinalIgnoreCase))
+            if (typeSpan.Equals("Coil", StringComparison.OrdinalIgnoreCase))
             {
                 var result = await ReadSingleCoilAsync(addr);
                 return (T)(object)result;
@@ -634,7 +651,7 @@ public class ModbusTcpClient : IProtocolClient
         }
         else if (typeof(T) == typeof(short))
         {
-            if (type.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
+            if (typeSpan.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
             {
                 var result = await ReadShortAsync(addr);
                 return (T)(object)result;
@@ -642,43 +659,43 @@ public class ModbusTcpClient : IProtocolClient
         }
         else if (typeof(T) == typeof(ushort))
         {
-            if (type.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
+            if (typeSpan.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
             {
                 var result = await ReadUShortAsync(addr);
                 return (T)(object)result;
             }
         }
 
-        throw new NotSupportedException($"Reading type {typeof(T).Name} from {type} is not supported or not implemented.");
+        throw new NotSupportedException($"Reading type {typeof(T).Name} from {typeSpan.ToString()} is not supported or not implemented.");
     }
 
     public async Task WriteAsync<T>(string address, T value)
     {
-        var parts = address.Split(':');
-        if (parts.Length != 2 || !ushort.TryParse(parts[1], out ushort addr))
+        int colonIndex = address.IndexOf(':');
+        if (colonIndex == -1 || !ushort.TryParse(address.AsSpan(colonIndex + 1), out ushort addr))
         {
             throw new ArgumentException("Invalid Modbus address format. Use 'Coil:<address>' or 'HoldingRegister:<address>'.", nameof(address));
         }
 
-        string type = parts[0];
+        ReadOnlySpan<char> typeSpan = address.AsSpan(0, colonIndex);
 
-        if (value is bool boolValue && type.Equals("Coil", StringComparison.OrdinalIgnoreCase))
+        if (value is bool boolValue && typeSpan.Equals("Coil", StringComparison.OrdinalIgnoreCase))
         {
             await WriteSingleCoilAsync(addr, boolValue);
             return;
         }
-        else if (value is short shortValue && type.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
+        else if (value is short shortValue && typeSpan.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
         {
             await WriteShortAsync(addr, shortValue);
             return;
         }
-        else if (value is ushort ushortValue && type.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
+        else if (value is ushort ushortValue && typeSpan.Equals("HoldingRegister", StringComparison.OrdinalIgnoreCase))
         {
             await WriteUShortAsync(addr, ushortValue);
             return;
         }
 
-        throw new NotSupportedException($"Writing type {typeof(T).Name} to {type} is not supported or not implemented.");
+        throw new NotSupportedException($"Writing type {typeof(T).Name} to {typeSpan.ToString()} is not supported or not implemented.");
     }
 
     public void Dispose()

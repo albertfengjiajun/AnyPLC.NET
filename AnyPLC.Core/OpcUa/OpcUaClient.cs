@@ -2,6 +2,9 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using AnyPLC.Core.Interfaces;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("AnyPLC.Tests")]
 
 namespace AnyPLC.Core.OpcUa;
 
@@ -28,6 +31,19 @@ public class OpcUaClient : IProtocolClient
     {
         if (IsConnected) return;
 
+        var config = CreateApplicationConfiguration();
+
+        await config.ValidateAsync(ApplicationType.Client);
+
+        var endpointDescription = await CoreClientUtils.SelectEndpointAsync(config, _serverUrl, false, 15000);
+        var endpointConfiguration = EndpointConfiguration.Create(config);
+        var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
+
+        _session = await Opc.Ua.Client.Session.Create(config, endpoint, false, "AnyPLC.Session", 60000, null, null);
+    }
+
+    internal ApplicationConfiguration CreateApplicationConfiguration()
+    {
         var hostName = System.Net.Dns.GetHostName();
         var config = new ApplicationConfiguration()
         {
@@ -40,9 +56,9 @@ public class OpcUaClient : IProtocolClient
                 TrustedIssuerCertificates = new CertificateTrustList { StoreType = @"Directory", StorePath = @"%CommonApplicationData%\OPC Foundation\CertificateStores\UA Certificate Authorities" },
                 TrustedPeerCertificates = new CertificateTrustList { StoreType = @"Directory", StorePath = @"%CommonApplicationData%\OPC Foundation\CertificateStores\UA Applications" },
                 RejectedCertificateStore = new CertificateTrustList { StoreType = @"Directory", StorePath = @"%CommonApplicationData%\OPC Foundation\CertificateStores\RejectedCertificates" },
-                AutoAcceptUntrustedCertificates = true,
-                RejectSHA1SignedCertificates = false,
-                MinimumCertificateKeySize = 1024
+                AutoAcceptUntrustedCertificates = false,
+                RejectSHA1SignedCertificates = true,
+                MinimumCertificateKeySize = 2048
             },
             TransportConfigurations = new TransportConfigurationCollection(),
             TransportQuotas = new TransportQuotas { OperationTimeout = 15000 },
@@ -50,27 +66,21 @@ public class OpcUaClient : IProtocolClient
             TraceConfiguration = new TraceConfiguration()
         };
 
-        await config.ValidateAsync(ApplicationType.Client);
-
-        if (config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
-        {
-            config.CertificateValidator.CertificateValidation += (s, e) => { e.Accept = (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted); };
-        }
-
-        var endpointDescription = await CoreClientUtils.SelectEndpointAsync(config, _serverUrl, false, 15000);
-        var endpointConfiguration = EndpointConfiguration.Create(config);
-        var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
-
-        _session = await Opc.Ua.Client.Session.Create(config, endpoint, false, "AnyPLC.Session", 60000, null, null);
+        return config;
     }
 
     public void Disconnect()
+    {
+        DisconnectAsync().GetAwaiter().GetResult();
+    }
+
+    public async Task DisconnectAsync()
     {
         if (_session != null)
         {
             if (_session.Connected)
             {
-                _session.CloseAsync().Wait();
+                await _session.CloseAsync();
             }
             _session.Dispose();
             _session = null;
