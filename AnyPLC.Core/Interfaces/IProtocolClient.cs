@@ -21,6 +21,11 @@ public interface IProtocolClient : IDisposable
     void Disconnect();
 
     /// <summary>
+    /// 异步断开与设备的连接
+    /// </summary>
+    Task DisconnectAsync();
+
+    /// <summary>
     /// 根据地址/节点ID异步读取指定类型的数据
     /// </summary>
     /// <typeparam name="T">期望返回的数据类型 (如 bool, short, ushort, string等)</typeparam>

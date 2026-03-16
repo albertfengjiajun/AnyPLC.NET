@@ -42,6 +42,12 @@ public class OmronClient : IProtocolClient
         return Task.CompletedTask;
     }
 
+    public Task DisconnectAsync()
+    {
+        Disconnect();
+        return Task.CompletedTask;
+    }
+
     public void Disconnect()
     {
         _isConnected = false;

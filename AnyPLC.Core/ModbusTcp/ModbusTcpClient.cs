@@ -78,6 +78,12 @@ public class ModbusTcpClient : IProtocolClient
     /// <summary>
     /// 断开与服务器的连接。
     /// </summary>
+    public Task DisconnectAsync()
+    {
+        Disconnect();
+        return Task.CompletedTask;
+    }
+
     public void Disconnect()
     {
         _networkStream?.Close(); // Close会处理Dispose
