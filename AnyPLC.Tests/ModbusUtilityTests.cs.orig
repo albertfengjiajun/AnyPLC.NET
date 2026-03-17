@@ -62,7 +62,7 @@ public class ModbusUtilityTests
     [Fact]
     public void ToUInt16BigEndian_WithNullBuffer_ShouldThrowArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => ModbusUtility.ToUInt16BigEndian(null!, 0));
+        Assert.Throws<ArgumentNullException>(() => ModbusUtility.ToUInt16BigEndian(null, 0));
     }
 
     [Theory]
