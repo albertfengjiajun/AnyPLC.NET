@@ -14,7 +14,7 @@ public class S7ClientTests
     public void Constructor_WithNullWrapper_ShouldThrowArgumentNullException()
     {
         // Assert
-        Assert.Throws<ArgumentNullException>(() => new S7Client((IS7PlcWrapper)null!));
+        Assert.Throws<ArgumentNullException>(() => new S7Client((IS7PlcWrapper)null));
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public class S7ClientTests
         // Arrange
         var mockWrapper = new Mock<IS7PlcWrapper>();
         mockWrapper.Setup(w => w.IsConnected).Returns(true);
-        mockWrapper.Setup(w => w.ReadAsync(It.IsAny<string>())).ReturnsAsync((object?)null);
+        mockWrapper.Setup(w => w.ReadAsync(It.IsAny<string>())).ReturnsAsync((object)null);
         var s7Client = new S7Client(mockWrapper.Object);
 
         // Act & Assert
@@ -175,7 +175,7 @@ public class S7ClientTests
         var s7Client = new S7Client(mockWrapper.Object);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentNullException>(() => s7Client.WriteAsync<object>("DB1.DBD4", null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => s7Client.WriteAsync<object>("DB1.DBD4", null));
     }
 
     [Fact]

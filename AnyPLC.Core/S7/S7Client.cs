@@ -1,8 +1,9 @@
 using AnyPLC.Core.Interfaces;
 using S7.Net;
-using System.Runtime.CompilerServices;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
-[assembly: InternalsVisibleTo("AnyPLC.Tests")]
 namespace AnyPLC.Core.S7;
 
 /// <summary>
@@ -10,9 +11,18 @@ namespace AnyPLC.Core.S7;
 /// </summary>
 public class S7Client : IProtocolClient
 {
-    private readonly IS7Plc _plc;
+    private readonly IS7PlcWrapper _plc;
 
-    public bool IsConnected => _plc != null && _plc.IsConnected;
+    public bool IsConnected => _plc?.IsConnected == true;
+
+    /// <summary>
+    /// 初始化 S7Client (用于依赖注入/单元测试)。
+    /// </summary>
+    /// <param name="plcWrapper">PLC 的接口封装实例</param>
+    public S7Client(IS7PlcWrapper plcWrapper)
+    {
+        _plc = plcWrapper ?? throw new ArgumentNullException(nameof(plcWrapper));
+    }
 
     /// <summary>
     /// 初始化 S7Client。
@@ -26,20 +36,11 @@ public class S7Client : IProtocolClient
         _plc = new S7PlcWrapper(cpu, ip, rack, slot);
     }
 
-    /// <summary>
-    /// 内部构造函数，用于依赖注入（便于单元测试）。
-    /// </summary>
-    /// <param name="plc">实现了 IS7Plc 接口的对象</param>
-    internal S7Client(IS7Plc plc)
-    {
-        _plc = plc ?? throw new ArgumentNullException(nameof(plc));
-    }
-
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (IsConnected) return;
 
-        await _plc.OpenAsync(cancellationToken);
+        await _plc.OpenAsync();
         if (!IsConnected)
         {
             throw new Exception($"Failed to connect to S7 PLC at {_plc.IP}");
@@ -99,6 +100,5 @@ public class S7Client : IProtocolClient
     public void Dispose()
     {
         Disconnect();
-        _plc?.Dispose();
     }
 }
